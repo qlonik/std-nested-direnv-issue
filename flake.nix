@@ -1,24 +1,25 @@
 {
   description = "A very basic flake";
 
-  outputs = { self, nixpkgs }:
-    let
-      system = "x86_64-darwin";
-      pkgs = nixpkgs.legacyPackages.${system};
-    in
+  inputs = {
+    nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+
+    std.url = "github:divnix/std";
+    std.inputs.nixpkgs.follows = "nixpkgs";
+  };
+
+  outputs = inputs @ { self, nixpkgs, std }: std.growOn
     {
-      devShells.${system} = {
-        default = pkgs.mkShell {
-          packages = with pkgs; [
-            ripgrep
-          ];
-        };
-        nested = pkgs.mkShell {
-          packages = with pkgs; [
-            nodejs
-            # yarn
-          ];
-        };
-      };
+      inherit inputs;
+      cellsFrom = ./cells;
+      cellBlocks = with std.blockTypes; [
+        (devshells "devshells" { ci.build = true; })
+      ];
+    }
+    {
+      devShells = std.harvest self [
+        [ "root" "devshells" ]
+        [ "nested" "devshells" ]
+      ];
     };
 }
